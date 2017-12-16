@@ -37,6 +37,7 @@ import random as mod_random
 import math as mod_math
 import sys as mod_sys
 import xml.dom.minidom as mod_minidom
+import warnings as mod_warnings
 
 try:
     import lxml.etree as mod_etree  # Load LXML or fallback to cET or ET
