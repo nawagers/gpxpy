@@ -26,7 +26,12 @@ for filename in os.listdir('./test_files'):
             xml = etree.XML(text)
             print(str(validator10.validate(xml)).ljust(width), end='')
             print(str(validator11.validate(xml)).ljust(width), end='')
-            ver = utext.partition('version=')[2][1:4]
+            ver = ''
+            if '<gpx' in utext:
+                gpxnode = utext.partition('<gpx')[2]
+                gpxnode = gpxnode.partition('>')[0]
+                if ' version=' in gpxnode:
+                    ver = gpxnode.partition(' version=')[2][1:4]
             print(ver.ljust(width), end='')
             print(filename)
             if ver == '1.0':

@@ -39,6 +39,14 @@ import sys as mod_sys
 import xml.dom.minidom as mod_minidom
 
 try:
+    import lxml.etree as mod_etree  # Load LXML or fallback to cET or ET
+except:
+    try:
+        import xml.etree.cElementTree as mod_etree
+    except:
+        import xml.etree.ElementTree as mod_etree
+
+try:
     import unittest2 as mod_unittest
 except ImportError:
     import unittest as mod_unittest
@@ -138,6 +146,83 @@ def pretty_print_xml(xml):
     dom = mod_minidom.parseString(xml)
     print(dom.toprettyxml())
 
+def assertValid(xml, version=None):
+    if not 'lxml' in mod_etree.__name__:
+        mod_warnings.warn("XML validation not available: LXML not installed")
+        return
+    # Create persistent validators (function attributes)
+    if not hasattr(assertValid, 'validator11'):
+        file11 = './xsd/gpx1_1.xsd'
+        assertValid.validator11 = mod_etree.XMLSchema(mod_etree.parse(file11))
+    if not hasattr(assertValid, 'validator10'):  
+        file10 = './xsd/gpx1_0.xsd'
+        assertValid.validator10 = mod_etree.XMLSchema(mod_etree.parse(file10))
+
+    # Parse xml
+    tree = mod_etree.XML(xml.encode('utf-8'))
+
+    # Check if valid and return proper error log (1.0 or 1.1)
+    if version == '1.1':
+        if not assertValid.validator11.validate(tree):
+            raise AssertionError(assertValid.validator11.error_log)
+    elif version == '1.0':
+        if not assertValid.validator10.validate(tree):
+            raise AssertionError(assertValid.validator10.error_log)
+    elif version is None:
+        if not assertValid.validator10.validate(tree) and not assertValid.validator11.validate(tree):
+            ver = ''
+            if '<gpx' in xml:
+                gpxnode = xml.partition('<gpx')[2]
+                gpxnode = gpxnode.partition('>')[0]
+                if ' version=' in gpxnode:
+                    ver = gpxnode.partition(' version=')[2][1:4]
+            if ver == '1.0':
+                raise AssertionError(assertValid.validator10.error_log)
+            elif ver == '1.1':
+                raise AssertionError(assertValid.validator11.error_log)
+            else:
+                raise AssertionError("Invalid XML. No GPX version specified")
+    else:
+        raise ValueError("Unknown version: {}".format(version))
+
+def assertInvalid(xml, version=None):
+    if not 'lxml' in mod_etree.__name__:
+        mod_warnings.warn("XML invalidation not available: LXML not installed")
+        return
+    # Create persistent validators (function attributes)
+    if not hasattr(assertInvalid, 'validator11'):
+        file11 = './xsd/gpx1_1.xsd'
+        assertInvalid.validator11 = mod_etree.XMLSchema(mod_etree.parse(file11))
+    if not hasattr(assertInvalid, 'validator10'):  
+        file10 = './xsd/gpx1_0.xsd'
+        assertInvalid.validator10 = mod_etree.XMLSchema(mod_etree.parse(file10))
+
+    # Parse xml
+    tree = mod_etree.XML(xml.encode('utf-8'))
+
+    # Check if valid and return passing schema (1.0 or 1.1)
+    if version == '1.1':
+        if assertInvalid.validator11.validate(tree):
+            raise AssertionError("GPX is valid version 1.1")
+    elif version == '1.0':
+        if assertInvalid.validator10.validate(tree):
+            raise AssertionError("GPX is valid version 1.0")
+    elif version is None:
+        if assertInvalid.validator10.validate(tree) or assertInvalid.validator11.validate(tree):
+            ver = ''
+            if '<gpx' in xml:
+                gpxnode = xml.partition('<gpx')[2]
+                gpxnode = gpxnode.partition('>')[0]
+                if ' version=' in gpxnode:
+                    ver = gpxnode.partition(' version=')[2][1:4]
+            if ver == '1.0':
+                raise AssertionError("GPX is valid version 1.0")
+            elif ver == '1.1':
+                raise AssertionError("GPX is valid version 1.1")
+            else:
+                raise AssertionError("Invalid XML. lxml borked or version check failed")
+    else:
+        raise ValueError("Unknown version: {}".format(version))
 
 class GPXTests(mod_unittest.TestCase):
     """
@@ -208,6 +293,7 @@ class GPXTests(mod_unittest.TestCase):
     def test_to_xml_creator(self):
         gpx = self.parse('cerknicko-jezero.gpx')
         xml = gpx.to_xml()
+        assertValid(xml)
         self.assertTrue('creator="GPSBabel - http://www.gpsbabel.org"' in xml)
 
         gpx2 = self.reparse(gpx)
@@ -275,7 +361,7 @@ class GPXTests(mod_unittest.TestCase):
             self.assertTrue(point.elevation is None)
 
         xml = gpx.to_xml()
-
+        assertValid(xml)
         self.assertFalse('<ele>' in xml)
 
     def test_remove_time(self):
@@ -313,7 +399,7 @@ class GPXTests(mod_unittest.TestCase):
     def test_unicode_2(self):
         parser = mod_parser.GPXParser(custom_open('test_files/unicode2.gpx', encoding='utf-8'))
         gpx = parser.parse()
-        gpx.to_xml()
+        assertValid(gpx.to_xml())
 
     def test_unicode_bom(self):
         gpx = self.parse('unicode_with_bom.gpx', encoding='utf-8')
@@ -373,6 +459,7 @@ class GPXTests(mod_unittest.TestCase):
         points_reduced = gpx.get_track_points_no()
 
         result = gpx.to_xml()
+        assertValid(result)
         if mod_sys.version_info[0] != 3:
             result = result.encode('utf-8')
 
@@ -904,6 +991,7 @@ class GPXTests(mod_unittest.TestCase):
         segment.points.append(point)
 
         xml = gpx.to_xml()
+        assertValid(xml)
 
         self.assertTrue('<name>aaa' in xml)
 
@@ -1613,7 +1701,7 @@ class GPXTests(mod_unittest.TestCase):
     def test_unicode(self):
         parser = mod_parser.GPXParser(custom_open('test_files/unicode2.gpx', encoding='utf-8'))
         gpx = parser.parse()
-        gpx.to_xml()
+        assertValid(gpx.to_xml())
 
     def test_location_delta(self):
         location = mod_geo.Location(-20, -50)
@@ -1675,10 +1763,14 @@ class GPXTests(mod_unittest.TestCase):
         original_gpx = mod_gpxpy.parse(xml)
 
         # Serialize and parse again to be sure that all is preserved:
-        reparsed_gpx = mod_gpxpy.parse(original_gpx.to_xml())
+        newxml = original_gpx.to_xml()
+        reparsed_gpx = mod_gpxpy.parse(newxml)
+        assertValid(newxml)
 
         original_dom = mod_minidom.parseString(xml)
-        reparsed_dom = mod_minidom.parseString(reparsed_gpx.to_xml())
+        newxml2 = reparsed_gpx.to_xml()
+        reparsed_dom = mod_minidom.parseString(newxml2)
+        assertValid(newxml2)
 
         # Validated with SAXParser in "make test"
         with open('validation_gpx10.gpx', 'w') as f:
@@ -1968,10 +2060,14 @@ class GPXTests(mod_unittest.TestCase):
         original_gpx = mod_gpxpy.parse(xml)
 
         # Serialize and parse again to be sure that all is preserved:
-        reparsed_gpx = mod_gpxpy.parse(original_gpx.to_xml('1.1'))
+        xmlto11 = original_gpx.to_xml('1.1')
+        assertValid(xmlto11, '1.1')
+        reparsed_gpx = mod_gpxpy.parse(xmlto11)
 
         original_dom = mod_minidom.parseString(xml)
-        reparsed_dom = mod_minidom.parseString(reparsed_gpx.to_xml('1.1'))
+        xmlto11_2 = reparsed_gpx.to_xml('1.1')
+        assertValid(xmlto11_2)
+        reparsed_dom = mod_minidom.parseString(xmlto11_2)
 
         for gpx in (original_gpx, reparsed_gpx):
             for dom in (original_dom, reparsed_dom):
@@ -2342,18 +2438,24 @@ class GPXTests(mod_unittest.TestCase):
                 for point in segment.points:
                     point.extensions = {}
 
+        newxml = reparsed_gpx.to_xml()
+        assertValid(newxml)
         with open('validation_gpx11.gpx', 'w') as f:
-            f.write(reparsed_gpx.to_xml())
+            f.write(newxml)
 
     def test_xml_chars_encode_decode(self):
         gpx = mod_gpxpy.gpx.GPX()
         gpx.name = "Test<a>jkljkl</gpx>"
 
-        print(gpx.to_xml())
+        newxml = gpx.to_xml()
+        assertValid(newxml)
+        print(newxml)
 
-        gpx_2 = mod_gpxpy.parse(gpx.to_xml())
+        gpx_2 = mod_gpxpy.parse(newxml)
 
-        self.assertTrue('<name>Test&lt;a&gt;jkljkl&lt;/gpx&gt;</name>' in gpx_2.to_xml())
+        newxml2 = gpx_2.to_xml()
+        self.assertTrue('<name>Test&lt;a&gt;jkljkl&lt;/gpx&gt;</name>' in newxml2)
+        assertValid(newxml2)
 
     def test_10_to_11_conversion(self):
         """
@@ -2463,18 +2565,21 @@ class GPXTests(mod_unittest.TestCase):
 
         # Convert do GPX1.0:
         xml_10 = original_gpx.to_xml('1.0')
+        assertValid(xml_10, '1.0')
         self.assertTrue('http://www.topografix.com/GPX/1/0' in xml_10)
         #pretty_print_xml(xml_10)
         gpx_1 = mod_gpxpy.parse(xml_10)
 
         # Convert do GPX1.1:
         xml_11 = gpx_1.to_xml('1.1')
+        assertValid(xml_11, '1.1')
         self.assertTrue('http://www.topografix.com/GPX/1/1' in xml_11 and 'metadata' in xml_11)
         pretty_print_xml(xml_11)
         gpx_2 = mod_gpxpy.parse(xml_11)
 
         # Convert do GPX1.0 again:
         xml_10 = gpx_2.to_xml('1.0')
+        assertValid(xml_10, '1.0')
         self.assertTrue('http://www.topografix.com/GPX/1/0' in xml_10)
         #pretty_print_xml(xml_10)
         gpx_3 = mod_gpxpy.parse(xml_10)
@@ -2772,6 +2877,7 @@ class GPXTests(mod_unittest.TestCase):
 
         segment.points.append(mod_gpx.GPXTrackPoint(0, 0, elevation=0))
         xml = gpx.to_xml()
+        assertValid(xml)
         print(xml)
 
         self.assertEquals(1, len(gpx.tracks))
@@ -2851,6 +2957,31 @@ class MiscTests(mod_unittest.TestCase):
         self.assertEquals(wpts, len(result_gpx.waypoints))
         self.assertEquals(trcks, len(result_gpx.tracks))
         self.assertEquals(points, result_gpx.get_points_no())
+
+
+    def parse(self, file, encoding=None, version = None):
+        f = custom_open('test_files/%s' % file, encoding=encoding)
+
+        parser = mod_parser.GPXParser(f)
+        gpx = parser.parse(version)
+        f.close()
+
+        if not gpx:
+            print('Parser error: %s' % parser.get_error())
+
+        return gpx
+
+    def reparse(self, gpx):
+        xml = gpx.to_xml()
+        assertValid(xml)
+
+        parser = mod_parser.GPXParser(xml)
+        gpx = parser.parse()
+
+        if not gpx:
+            print('Parser error while reparsing: %s' % parser.get_error())
+
+        return gpx
 
 if __name__ == '__main__':
     mod_unittest.main()
