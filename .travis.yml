@@ -18,9 +18,7 @@ env:
 
 
 install:
- - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then
-     pip install pylint
-   fi
+
 # Check whether to install lxml
 # Pin versions 2.6 and 3.2 to lxml 3.6 (end of support)
  - if [ "$XMLPARSER" == "LXML" ]; then
@@ -42,10 +40,14 @@ install:
  - if [ "$TRAVIS_PYTHON_VERSION" == "2.6" ]; then pip install unittest2; fi
 
 
+ # Run Linter on 3.6
+ - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then pip install pylint; fi
+
+
 script:
  - coverage run --source=gpxpy ./test.py
  - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then
-     pylint --disable=C,R,W,E gpxpy
+     pylint --disable=C,R,W,E gpxpy || travis_terminate 1;
    fi
 
 after_success:
