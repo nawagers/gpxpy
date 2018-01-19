@@ -47,7 +47,7 @@ install:
 script:
  - coverage run --source=gpxpy ./test.py
  - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then
-     pylint --disable=C,R,W,E gpxpy || travis_terminate 1;
+     pylint --disable=C,R,W gpxpy || travis_terminate 1;
    fi
 
 after_success:
