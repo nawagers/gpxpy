@@ -57,8 +57,8 @@ matrix:
 jobs:
   include:
     - # stage: lint
-      install: pip install pylint, pyflakes, pycodestyle
-      script: pylint --disable=C,R,W,E gpxpy
+      install: pip install pylint pyflakes pycodestyle
+      script: pylint --disable=C,R,W gpxpy
       python: 3.6
       env: LINT_ONLY=TRUE
       after_success:
