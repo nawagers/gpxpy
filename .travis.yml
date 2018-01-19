@@ -5,10 +5,10 @@ sudo: false
 
 # Those without lxml wheels first because building lxml is slow
 python:
-# - 3.2
-# - 2.7
-# - 3.3
-# - 3.4
+ - 3.2
+ - 2.7
+ - 3.3
+ - 3.4
  - 3.5
  - 3.6
 
@@ -40,15 +40,8 @@ install:
  - if [ "$TRAVIS_PYTHON_VERSION" == "2.6" ]; then pip install unittest2; fi
 
 
- # Run Linter on 3.6
- # - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then pip install pylint; fi
-
-
 script:
  - coverage run --source=gpxpy ./test.py
-# - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then
-#     pylint --disable=C,R,W gpxpy || travis_terminate 1;
-#   fi
 
 after_success:
  - pip install coveralls
@@ -56,9 +49,6 @@ after_success:
 
 after_script:
  - coverage report
- - pip install pyflakes pycodestyle
- - pyflakes . | tee >(wc -l)
- - pycodestyle --statistics --count .
 
 matrix:
   fast_finish: true
@@ -67,9 +57,11 @@ matrix:
 jobs:
   include:
     - # stage: lint
-      install: pip install pylint
+      install: pip install pylint, pyflakes, pycodestyle
       script: pylint --disable=C,R,W,E gpxpy
       python: 3.6
-      env:
+      env: LINT_ONLY=TRUE
       after_success:
-      after_script:
+      after_script: 
+        - pyflakes . | tee >(wc -l)
+        - pycodestyle --statistics --count .
