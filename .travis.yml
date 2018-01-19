@@ -41,14 +41,14 @@ install:
 
 
  # Run Linter on 3.6
- - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then pip install pylint; fi
+ # - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then pip install pylint; fi
 
 
 script:
  - coverage run --source=gpxpy ./test.py
- - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then
-     pylint --disable=C,R,W gpxpy || travis_terminate 1;
-   fi
+# - if [ ""$TRAVIS_PYTHON_VERSION"" == "3.6" ]; then
+#     pylint --disable=C,R,W gpxpy || travis_terminate 1;
+#   fi
 
 after_success:
  - pip install coveralls
@@ -62,3 +62,11 @@ after_script:
 
 matrix:
   fast_finish: true
+
+
+jobs:
+  include:
+    - stage: lint
+      install: pip install pylint
+      script: pylint --disable=C,R,W gpxpy
+      python: 3.6
