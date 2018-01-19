@@ -42,7 +42,7 @@ install:
 
 script:
  - coverage run --source=gpxpy ./test.py
- - pylint --disable=C,R,E gpxpy
+ - pylint --disable=C,R,W,E gpxpy
 
 after_success:
  - pip install coveralls
